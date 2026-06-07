@@ -63,7 +63,7 @@ end
 
 local function restore_for_current_mode()
   local mode = (M.config.get_mode or vim.api.nvim_get_mode)().mode
-  if mode:sub(1, 1) == "i" then
+  if mode:sub(1, 1) == "i" or mode == "t" then
     restore_insert_state()
   else
     deactivate()
@@ -104,6 +104,21 @@ function M.setup(opts)
     group = group,
     callback = function()
       restore_insert_state()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("TermEnter", {
+    group = group,
+    callback = function()
+      restore_insert_state()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("TermLeave", {
+    group = group,
+    callback = function()
+      save_insert_state()
+      deactivate()
     end,
   })
 
