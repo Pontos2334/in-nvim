@@ -1,4 +1,5 @@
 local Fcitx5 = require("in_nvim.fcitx5")
+local Zellij = require("in_nvim.zellij")
 
 local M = {}
 
@@ -6,10 +7,16 @@ local defaults = {
   command = "fcitx5-remote",
   notify = true,
   restore_insert = true,
+  zellij_command = "zellij",
+  zellij_focus_check = "auto",
+  zellij_focus_check_interval = 500,
 }
 
 local state = {
   client = nil,
+  zellij_client = nil,
+  zellij_focused = nil,
+  zellij_timer = nil,
   warned = false,
   insert_active = false,
 }
@@ -70,6 +77,79 @@ local function restore_for_current_mode()
   end
 end
 
+local function stop_zellij_focus_check()
+  if not state.zellij_timer then
+    return
+  end
+
+  state.zellij_timer:stop()
+  if not state.zellij_timer:is_closing() then
+    state.zellij_timer:close()
+  end
+  state.zellij_timer = nil
+end
+
+local function zellij_focus_check_enabled()
+  if M.config.zellij_focus_check == true then
+    return true
+  end
+
+  return M.config.zellij_focus_check == "auto" and vim.env.ZELLIJ ~= nil and vim.env.ZELLIJ_PANE_ID ~= nil
+end
+
+local function check_zellij_focus()
+  if not state.zellij_client then
+    return
+  end
+
+  local focused = state.zellij_client:is_pane_focused(vim.env.ZELLIJ_PANE_ID)
+  if focused == nil then
+    return
+  end
+
+  local was_focused = state.zellij_focused
+  state.zellij_focused = focused
+
+  if focused and was_focused ~= true then
+    restore_for_current_mode()
+  end
+end
+
+local function start_zellij_focus_check()
+  stop_zellij_focus_check()
+
+  state.zellij_client = nil
+  state.zellij_focused = nil
+
+  if not zellij_focus_check_enabled() then
+    return
+  end
+
+  state.zellij_client = Zellij.new({
+    command = M.config.zellij_command,
+    runner = M.config.zellij_runner,
+  })
+
+  local interval = tonumber(M.config.zellij_focus_check_interval) or 0
+  if interval <= 0 then
+    return
+  end
+
+  local uv = vim.uv or vim.loop
+  state.zellij_timer = uv.new_timer()
+  state.zellij_timer:start(
+    interval,
+    interval,
+    vim.schedule_wrap(function()
+      check_zellij_focus()
+    end)
+  )
+
+  if state.zellij_timer.unref then
+    state.zellij_timer:unref()
+  end
+end
+
 function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", defaults, opts or {})
   state.client = Fcitx5.new({
@@ -80,6 +160,7 @@ function M.setup(opts)
   state.insert_active = false
 
   local group = vim.api.nvim_create_augroup("in_nvim_fcitx5", { clear = true })
+  start_zellij_focus_check()
 
   if vim.v.vim_did_enter == 1 then
     deactivate()
@@ -128,10 +209,21 @@ function M.setup(opts)
       restore_for_current_mode()
     end,
   })
+
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = group,
+    callback = function()
+      stop_zellij_focus_check()
+    end,
+  })
 end
 
 function M._state()
   return state
+end
+
+function M._check_zellij_focus()
+  check_zellij_focus()
 end
 
 return M

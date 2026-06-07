@@ -8,6 +8,8 @@ Small Neovim plugin for Fcitx5 input-method state switching.
 - Insert mode remembers whether Fcitx5 was active when you left insert mode.
 - Re-entering insert mode restores that active/inactive state.
 - Returning focus to Neovim also reapplies the correct state for the current mode.
+- When running inside Zellij, the plugin can poll the focused pane as a fallback
+  for terminal focus events that Zellij does not forward to Neovim.
 
 The plugin does not modify Fcitx5 source code or your Fcitx5 profile. It only needs `fcitx5-remote` to work inside the Neovim process environment.
 
@@ -17,6 +19,7 @@ The plugin does not modify Fcitx5 source code or your Fcitx5 profile. It only ne
 - Fcitx5 running in the graphical session.
 - `fcitx5-remote` available on `PATH`.
 - Fcitx5 DBus addon enabled.
+- Optional: `zellij` available on `PATH` for the Zellij focus fallback.
 
 Your current Fcitx5 profile with `keyboard-us` and `pinyin` is enough for the core behavior.
 
@@ -41,6 +44,9 @@ require("in_nvim").setup({
   command = "fcitx5-remote",
   notify = true,
   restore_insert = true,
+  zellij_command = "zellij",
+  zellij_focus_check = "auto",
+  zellij_focus_check_interval = 500,
 })
 ```
 
