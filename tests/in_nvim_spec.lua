@@ -138,6 +138,18 @@ reset()
 plugin.setup({
   runner = runner,
   notify = false,
+  zellij_focus_check = "auto",
+  zellij_runner = zellij_runner,
+  get_mode = function()
+    return { mode = current_mode }
+  end,
+})
+assert_eq(plugin._state().zellij_client, nil, "auto should not start zellij polling")
+
+reset()
+plugin.setup({
+  runner = runner,
+  notify = false,
   zellij_focus_check = true,
   zellij_focus_check_interval = 0,
   zellij_runner = zellij_runner,

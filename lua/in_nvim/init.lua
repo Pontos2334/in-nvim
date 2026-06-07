@@ -8,7 +8,7 @@ local defaults = {
   notify = true,
   restore_insert = true,
   zellij_command = "zellij",
-  zellij_focus_check = "auto",
+  zellij_focus_check = false,
   zellij_focus_check_interval = 500,
 }
 
@@ -90,11 +90,7 @@ local function stop_zellij_focus_check()
 end
 
 local function zellij_focus_check_enabled()
-  if M.config.zellij_focus_check == true then
-    return true
-  end
-
-  return M.config.zellij_focus_check == "auto" and vim.env.ZELLIJ ~= nil and vim.env.ZELLIJ_PANE_ID ~= nil
+  return M.config.zellij_focus_check == true
 end
 
 local function check_zellij_focus()

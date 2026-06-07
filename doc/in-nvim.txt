@@ -13,7 +13,7 @@ Setup:
     notify = true,
     restore_insert = true,
     zellij_command = "zellij",
-    zellij_focus_check = "auto",
+    zellij_focus_check = false,
     zellij_focus_check_interval = 500,
   })
 <
@@ -36,8 +36,9 @@ Options:
 
                                                         *in-nvim-zellij_focus_check*
 `zellij_focus_check`      Check the focused Zellij pane as a fallback for
-                           terminal focus events. Use true, false, or "auto".
-                           Default: "auto".
+                           terminal focus events. This polls the Zellij CLI and
+                           can disturb redraws in some terminals.
+                           Default: false.
 
                                                         *in-nvim-zellij_focus_check_interval*
 `zellij_focus_check_interval`
