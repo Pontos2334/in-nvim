@@ -1,41 +1,58 @@
-*in-nvim.txt* Fcitx5 input method switching for Neovim
+*in-nvim.txt* Input method switching for Neovim
 
 ==============================================================================
 CONTENTS                                                        *in-nvim*
 
-in-nvim keeps Fcitx5 inactive in Normal mode and restores the last Insert mode
-active/inactive state when Insert mode is entered again.
+in-nvim keeps the input method inactive in Normal mode and restores the last
+Insert mode active/inactive state when Insert mode is entered again.
+
+Supports Fcitx5 and IBus input method frameworks with automatic detection.
 
 Setup:
 >
   require("in_nvim").setup({
+    backend = "auto",
     command = "fcitx5-remote",
     notify = true,
     restore_insert = true,
     zellij_command = "zellij",
     zellij_focus_check = false,
     zellij_focus_check_interval = 500,
+    ibus_command = "ibus",
+    ibus_latin_engine = "xkb:us::eng",
   })
 <
 
 Options:
 
+                                                        *in-nvim-backend*
+`backend`                  Input method backend: "auto", "fcitx5", or "ibus".
+                           "auto" detects the available framework, preferring
+                           Fcitx5. Default: "auto".
+
                                                         *in-nvim-command*
-`command`                 Fcitx5 remote command. Default: "fcitx5-remote".
+`command`                  Fcitx5 remote command. Default: "fcitx5-remote".
 
                                                         *in-nvim-notify*
-`notify`                  Show one warning if the command fails. Default: true.
+`notify`                   Show one warning if the command fails. Default: true.
 
                                                         *in-nvim-restore_insert*
-`restore_insert`          Restore the saved Insert mode active/inactive state.
+`restore_insert`           Restore the saved Insert mode active/inactive state.
                            Default: true.
 
+                                                        *in-nvim-ibus_command*
+`ibus_command`             IBus command. Default: "ibus".
+
+                                                        *in-nvim-ibus_latin_engine*
+`ibus_latin_engine`        Latin engine name used by IBus to deactivate input
+                           method. Default: "xkb:us::eng".
+
                                                         *in-nvim-zellij_command*
-`zellij_command`          Zellij command used by the focus fallback.
+`zellij_command`           Zellij command used by the focus fallback.
                            Default: "zellij".
 
                                                         *in-nvim-zellij_focus_check*
-`zellij_focus_check`      Check the focused Zellij pane as a fallback for
+`zellij_focus_check`       Check the focused Zellij pane as a fallback for
                            terminal focus events. This polls the Zellij CLI and
                            can disturb redraws in some terminals.
                            Default: false.

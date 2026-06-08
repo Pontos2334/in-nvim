@@ -1,15 +1,18 @@
-local Fcitx5 = require("in_nvim.fcitx5")
+local Backend = require("in_nvim.backend")
 local Zellij = require("in_nvim.zellij")
 
 local M = {}
 
 local defaults = {
+  backend = "auto",
   command = "fcitx5-remote",
   notify = true,
   restore_insert = true,
   zellij_command = "zellij",
   zellij_focus_check = false,
   zellij_focus_check_interval = 500,
+  ibus_command = "ibus",
+  ibus_latin_engine = "xkb:us::eng",
 }
 
 local state = {
@@ -35,14 +38,14 @@ end
 local function deactivate()
   local ok = state.client:deactivate()
   if not ok then
-    notify_once("Failed to switch Fcitx5 to English. Is fcitx5 running and reachable over DBus?")
+    notify_once("Failed to deactivate input method. Is the input method running?")
   end
 end
 
 local function save_insert_state()
   local active, err = state.client:is_active()
   if active == nil then
-    notify_once("Failed to query Fcitx5 state: " .. tostring(err))
+    notify_once("Failed to query input method state: " .. tostring(err))
     state.insert_active = false
     return
   end
@@ -64,7 +67,7 @@ local function restore_insert_state()
   end
 
   if not ok then
-    notify_once("Failed to restore Fcitx5 state. Is fcitx5 running and reachable over DBus?")
+    notify_once("Failed to restore input method state. Is the input method running?")
   end
 end
 
@@ -148,10 +151,7 @@ end
 
 function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", defaults, opts or {})
-  state.client = Fcitx5.new({
-    command = M.config.command,
-    runner = M.config.runner,
-  })
+  state.client = Backend.resolve(M.config)
   state.warned = false
   state.insert_active = false
 
