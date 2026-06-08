@@ -1,15 +1,18 @@
-local Fcitx5 = require("in_nvim.fcitx5")
+local Backend = require("in_nvim.backend")
 local Zellij = require("in_nvim.zellij")
 
 local M = {}
 
 local defaults = {
+  backend = "auto",
   command = "fcitx5-remote",
   notify = true,
   restore_insert = true,
   zellij_command = "zellij",
   zellij_focus_check = false,
   zellij_focus_check_interval = 500,
+  ibus_command = "ibus",
+  ibus_latin_engine = "xkb:us::eng",
 }
 
 local state = {
@@ -33,16 +36,16 @@ local function notify_once(message)
 end
 
 local function deactivate()
-  local ok = state.client:deactivate()
+  local ok, err = state.client:deactivate()
   if not ok then
-    notify_once("Failed to switch Fcitx5 to English. Is fcitx5 running and reachable over DBus?")
+    notify_once("Failed to deactivate input method: " .. tostring(err))
   end
 end
 
 local function save_insert_state()
   local active, err = state.client:is_active()
   if active == nil then
-    notify_once("Failed to query Fcitx5 state: " .. tostring(err))
+    notify_once("Failed to query input method state: " .. tostring(err))
     state.insert_active = false
     return
   end
@@ -56,15 +59,15 @@ local function restore_insert_state()
     return
   end
 
-  local ok
+  local ok, err
   if state.insert_active then
-    ok = state.client:activate()
+    ok, err = state.client:activate()
   else
-    ok = state.client:deactivate()
+    ok, err = state.client:deactivate()
   end
 
   if not ok then
-    notify_once("Failed to restore Fcitx5 state. Is fcitx5 running and reachable over DBus?")
+    notify_once("Failed to restore input method state: " .. tostring(err))
   end
 end
 
@@ -148,14 +151,15 @@ end
 
 function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", defaults, opts or {})
-  state.client = Fcitx5.new({
-    command = M.config.command,
-    runner = M.config.runner,
-  })
+  local resolve_err
+  state.client, resolve_err = Backend.resolve(M.config)
   state.warned = false
   state.insert_active = false
+  if resolve_err then
+    notify_once("Input method backend unavailable: " .. tostring(resolve_err))
+  end
 
-  local group = vim.api.nvim_create_augroup("in_nvim_fcitx5", { clear = true })
+  local group = vim.api.nvim_create_augroup("in_nvim", { clear = true })
   start_zellij_focus_check()
 
   if vim.v.vim_did_enter == 1 then
