@@ -36,9 +36,9 @@ local function notify_once(message)
 end
 
 local function deactivate()
-  local ok = state.client:deactivate()
+  local ok, err = state.client:deactivate()
   if not ok then
-    notify_once("Failed to deactivate input method. Is the input method running?")
+    notify_once("Failed to deactivate input method: " .. tostring(err))
   end
 end
 
@@ -59,15 +59,15 @@ local function restore_insert_state()
     return
   end
 
-  local ok
+  local ok, err
   if state.insert_active then
-    ok = state.client:activate()
+    ok, err = state.client:activate()
   else
-    ok = state.client:deactivate()
+    ok, err = state.client:deactivate()
   end
 
   if not ok then
-    notify_once("Failed to restore input method state. Is the input method running?")
+    notify_once("Failed to restore input method state: " .. tostring(err))
   end
 end
 
@@ -151,11 +151,15 @@ end
 
 function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", defaults, opts or {})
-  state.client = Backend.resolve(M.config)
+  local resolve_err
+  state.client, resolve_err = Backend.resolve(M.config)
   state.warned = false
   state.insert_active = false
+  if resolve_err then
+    notify_once("Input method backend unavailable: " .. tostring(resolve_err))
+  end
 
-  local group = vim.api.nvim_create_augroup("in_nvim_fcitx5", { clear = true })
+  local group = vim.api.nvim_create_augroup("in_nvim", { clear = true })
   start_zellij_focus_check()
 
   if vim.v.vim_did_enter == 1 then

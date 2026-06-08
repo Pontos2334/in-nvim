@@ -53,8 +53,9 @@ require("in_nvim").setup({
 
 `backend = "auto"` (default) detects the available input method framework:
 1. If `fcitx5-remote` is on `PATH`, uses Fcitx5.
-2. Else if `ibus` is on `PATH`, uses IBus.
-3. Else falls back to Fcitx5 (will show a warning).
+2. Else if `ibus` is on `PATH` and `ibus engine` can query the current
+   engine, uses IBus.
+3. Else disables switching and shows one warning with the detected reason.
 
 Set `backend = "fcitx5"` or `backend = "ibus"` to override auto-detection.
 
@@ -83,6 +84,11 @@ ibus engine
 ```
 
 This should print the current engine name (e.g., `xkb:us::eng` or `libpinyin`).
+
+Having an IBus input source configured in GNOME is not enough by itself: this
+backend needs the `ibus engine` command to work from Neovim's environment. If
+`ibus engine` prints `No engine is set` or `Can't connect to IBus`, the plugin
+will leave switching disabled instead of pretending that the switch succeeded.
 
 If `ibus_latin_engine` does not match your layout, set it to your Latin engine name:
 

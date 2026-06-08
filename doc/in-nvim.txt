@@ -28,7 +28,8 @@ Options:
                                                         *in-nvim-backend*
 `backend`                  Input method backend: "auto", "fcitx5", or "ibus".
                            "auto" detects the available framework, preferring
-                           Fcitx5. Default: "auto".
+                           Fcitx5. IBus is selected only when `ibus engine`
+                           can query the current engine. Default: "auto".
 
                                                         *in-nvim-command*
 `command`                  Fcitx5 remote command. Default: "fcitx5-remote".
@@ -46,6 +47,11 @@ Options:
                                                         *in-nvim-ibus_latin_engine*
 `ibus_latin_engine`        Latin engine name used by IBus to deactivate input
                            method. Default: "xkb:us::eng".
+
+                           IBus requires `ibus engine` to work from Neovim's
+                           environment. If it reports "No engine is set" or
+                           "Can't connect to IBus", switching is disabled and
+                           one warning is shown.
 
                                                         *in-nvim-zellij_command*
 `zellij_command`           Zellij command used by the focus fallback.
