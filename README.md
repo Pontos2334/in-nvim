@@ -8,8 +8,8 @@ Small Neovim plugin for input method state switching (Fcitx5 and IBus).
 - Insert mode remembers whether the input method was active when you left insert mode.
 - Re-entering insert mode restores that active/inactive state.
 - Returning focus to Neovim also reapplies the correct state for the current mode.
-- Zellij users can opt in to an experimental focus fallback, but it is disabled
-  by default because polling Zellij can disturb Neovim redraws in some terminals.
+- Kitty users can install the included watcher so switching back from another
+  kitty tab also reapplies the correct state.
 
 ## Requirements
 
@@ -33,6 +33,18 @@ return {
 }
 ```
 
+## Kitty
+
+To restore input state when switching back from another kitty tab, install the
+watcher and add it to `kitty.conf`:
+
+```sh
+cp extras/kitty/in_nvim_focus.py ~/.config/kitty/in_nvim_focus.py
+printf '\nwatcher %s\n' "$HOME/.config/kitty/in_nvim_focus.py" >> ~/.config/kitty/kitty.conf
+```
+
+Restart kitty after changing `kitty.conf`.
+
 ## Configuration
 
 ```lua
@@ -43,6 +55,7 @@ require("in_nvim").setup({
   restore_insert = true,
   ibus_command = "ibus",            -- ibus command
   ibus_latin_engine = "xkb:us::eng", -- latin engine for IBus deactivation
+  kitty_focus_check = true,
   zellij_command = "zellij",
   zellij_focus_check = false,
   zellij_focus_check_interval = 500,
@@ -59,8 +72,13 @@ require("in_nvim").setup({
 
 Set `backend = "fcitx5"` or `backend = "ibus"` to override auto-detection.
 
-`zellij_focus_check = true` polls `zellij action list-panes --json --state`.
-Leave it disabled if it causes cursor flicker or redraw noise.
+`kitty_focus_check = true` starts a small Neovim RPC server when running inside
+kitty and writes its address to `/tmp/in-nvim-kitty/<KITTY_WINDOW_ID>`. The kitty
+watcher reads this file on focus changes and calls back into Neovim.
+
+`zellij_focus_check = true` keeps the old polling fallback that runs `zellij
+action list-panes --json --state`. It is retained for compatibility, but can
+cause cursor flicker or redraw noise.
 
 ## Troubleshooting
 

@@ -8,6 +8,7 @@ local defaults = {
   command = "fcitx5-remote",
   notify = true,
   restore_insert = true,
+  kitty_focus_check = true,
   zellij_command = "zellij",
   zellij_focus_check = false,
   zellij_focus_check_interval = 500,
@@ -20,6 +21,8 @@ local state = {
   zellij_client = nil,
   zellij_focused = nil,
   zellij_timer = nil,
+  kitty_server = nil,
+  kitty_focus_path = nil,
   warned = false,
   insert_active = false,
 }
@@ -149,7 +152,116 @@ local function start_zellij_focus_check()
   end
 end
 
+local function kitty_focus_file_path()
+  if not vim.env.KITTY_WINDOW_ID or vim.env.KITTY_WINDOW_ID == "" then
+    return nil
+  end
+
+  return "/tmp/in-nvim-kitty/" .. tostring(vim.env.KITTY_WINDOW_ID)
+end
+
+local function start_kitty_focus_check()
+  if not M.config.kitty_focus_check then
+    return
+  end
+
+  local path = kitty_focus_file_path()
+  if not path then
+    return
+  end
+
+  local ok, server
+  if M.config.serverstart then
+    ok, server = pcall(M.config.serverstart)
+  else
+    ok, server = pcall(vim.fn.serverstart)
+  end
+
+  if not ok then
+    notify_once("Failed to start Neovim RPC server for kitty focus integration: " .. tostring(server))
+    return
+  end
+
+  if not server or server == "" then
+    notify_once("Failed to start Neovim RPC server for kitty focus integration.")
+    return
+  end
+
+  vim.fn.mkdir("/tmp/in-nvim-kitty", "p")
+  vim.fn.writefile({ tostring(server) }, path)
+  state.kitty_server = server
+  state.kitty_focus_path = path
+end
+
+local function stop_kitty_focus_check()
+  if not state.kitty_focus_path then
+    if state.kitty_server then
+      if M.config.serverstop then
+        M.config.serverstop(state.kitty_server)
+      else
+        pcall(vim.fn.serverstop, state.kitty_server)
+      end
+      state.kitty_server = nil
+    end
+    return
+  end
+
+  pcall(vim.fn.delete, state.kitty_focus_path)
+  state.kitty_focus_path = nil
+
+  if state.kitty_server then
+    if M.config.serverstop then
+      M.config.serverstop(state.kitty_server)
+    else
+      pcall(vim.fn.serverstop, state.kitty_server)
+    end
+    state.kitty_server = nil
+  end
+end
+
+local function status_lines()
+  return {
+    "in-nvim",
+    "kitty_focus_check: " .. tostring(M.config and M.config.kitty_focus_check),
+    "kitty_server: " .. tostring(state.kitty_server),
+    "kitty_focus_path: " .. tostring(state.kitty_focus_path),
+    "KITTY_WINDOW_ID: " .. tostring(vim.env.KITTY_WINDOW_ID),
+    "zellij_focus_check: " .. tostring(M.config and M.config.zellij_focus_check),
+    "ZELLIJ: " .. tostring(vim.env.ZELLIJ),
+    "ZELLIJ_PANE_ID: " .. tostring(vim.env.ZELLIJ_PANE_ID),
+    "insert_active: " .. tostring(state.insert_active),
+  }
+end
+
+local function echo_status()
+  local lines = status_lines()
+  vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO, { title = "in-nvim" })
+  vim.fn.setreg("+", table.concat(lines, "\n"))
+end
+
+local function create_user_commands()
+  vim.api.nvim_create_user_command("InNvimStatus", function()
+    echo_status()
+  end, { force = true })
+
+  vim.api.nvim_create_user_command("InNvimKittyRegister", function()
+    stop_kitty_focus_check()
+    start_kitty_focus_check()
+    echo_status()
+  end, { force = true })
+
+  vim.api.nvim_create_user_command("InNvimRestore", function()
+    restore_for_current_mode()
+    echo_status()
+  end, { force = true })
+end
+
 function M.setup(opts)
+  if M.config then
+    stop_zellij_focus_check()
+    stop_kitty_focus_check()
+  end
+
   M.config = vim.tbl_deep_extend("force", defaults, opts or {})
   local resolve_err
   state.client, resolve_err = Backend.resolve(M.config)
@@ -161,6 +273,8 @@ function M.setup(opts)
 
   local group = vim.api.nvim_create_augroup("in_nvim", { clear = true })
   start_zellij_focus_check()
+  start_kitty_focus_check()
+  create_user_commands()
 
   if vim.v.vim_did_enter == 1 then
     deactivate()
@@ -214,6 +328,7 @@ function M.setup(opts)
     group = group,
     callback = function()
       stop_zellij_focus_check()
+      stop_kitty_focus_check()
     end,
   })
 end
@@ -224,6 +339,10 @@ end
 
 function M._check_zellij_focus()
   check_zellij_focus()
+end
+
+function M._focus_gained()
+  restore_for_current_mode()
 end
 
 return M

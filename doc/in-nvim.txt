@@ -15,6 +15,7 @@ Setup:
     command = "fcitx5-remote",
     notify = true,
     restore_insert = true,
+    kitty_focus_check = true,
     zellij_command = "zellij",
     zellij_focus_check = false,
     zellij_focus_check_interval = 500,
@@ -53,6 +54,11 @@ Options:
                            "Can't connect to IBus", switching is disabled and
                            one warning is shown.
 
+                                                        *in-nvim-kitty_focus_check*
+`kitty_focus_check`        Register this Neovim instance for the included kitty
+                           focus watcher when KITTY_WINDOW_ID is available.
+                           Default: true.
+
                                                         *in-nvim-zellij_command*
 `zellij_command`           Zellij command used by the focus fallback.
                            Default: "zellij".
@@ -65,7 +71,13 @@ Options:
 
                                                         *in-nvim-zellij_focus_check_interval*
 `zellij_focus_check_interval`
-                           Zellij focus check interval in milliseconds.
+                           Zellij polling interval in milliseconds.
                            Default: 500.
+
+Kitty watcher:
+>
+  cp extras/kitty/in_nvim_focus.py ~/.config/kitty/in_nvim_focus.py
+  printf '\nwatcher %s\n' "$HOME/.config/kitty/in_nvim_focus.py" >> ~/.config/kitty/kitty.conf
+<
 
  vim:tw=78:ts=8:noet:ft=help:norl:

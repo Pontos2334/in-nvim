@@ -6,6 +6,7 @@ local ibus_calls = {}
 local ibus_outputs = {}
 local zellij_calls = {}
 local zellij_outputs = {}
+local server_stops = {}
 local current_mode = "n"
 
 local function runner(_, args)
@@ -54,6 +55,18 @@ local function zellij_runner(_, args)
   return { code = 0, stdout = tostring(value or "[]") }
 end
 
+local function serverstart()
+  return "/tmp/in-nvim-test-server"
+end
+
+local function failing_serverstart()
+  error("serverstart failed")
+end
+
+local function serverstop(server)
+  server_stops[#server_stops + 1] = server
+end
+
 local function reset()
   calls = {}
   outputs = {}
@@ -61,6 +74,7 @@ local function reset()
   ibus_outputs = {}
   zellij_calls = {}
   zellij_outputs = {}
+  server_stops = {}
   current_mode = "n"
 end
 
@@ -82,6 +96,8 @@ end
 
 local plugin = require("in_nvim")
 local Backend = require("in_nvim.backend")
+local old_kitty_window_id = vim.env.KITTY_WINDOW_ID
+vim.env.KITTY_WINDOW_ID = nil
 
 reset()
 plugin.setup({
@@ -211,8 +227,64 @@ zellij_outputs = { '[{"id":7,"is_plugin":false,"is_focused":true}]' }
 plugin._check_zellij_focus()
 assert_calls({ "-o" }, "focused zellij pane in insert mode restores active input method")
 
+reset()
+current_mode = "n"
+vim.env.KITTY_WINDOW_ID = "in-nvim-test-window"
+plugin.setup({
+  runner = runner,
+  notify = false,
+  kitty_focus_check = true,
+  zellij_focus_check = false,
+  serverstart = serverstart,
+  serverstop = serverstop,
+  get_mode = function()
+    return { mode = current_mode }
+  end,
+})
+assert_eq(plugin._state().kitty_server, "/tmp/in-nvim-test-server", "kitty integration should start an rpc server")
+assert_eq(plugin._state().kitty_focus_path, "/tmp/in-nvim-kitty/in-nvim-test-window", "kitty integration should register by window id")
+local kitty_server_file = vim.fn.readfile("/tmp/in-nvim-kitty/in-nvim-test-window")
+assert_eq(kitty_server_file[1], "/tmp/in-nvim-test-server", "kitty integration should write nvim server")
+
+reset()
+plugin._focus_gained()
+assert_calls({ "-c" }, "kitty callback in normal mode closes input method")
+
+reset()
+current_mode = "i"
+plugin._state().insert_active = true
+plugin._focus_gained()
+assert_calls({ "-o" }, "kitty callback in insert mode restores input method")
+
+reset()
+vim.api.nvim_exec_autocmds("VimLeavePre", {})
+assert_eq(vim.fn.filereadable("/tmp/in-nvim-kitty/in-nvim-test-window"), 0, "kitty integration should remove server file")
+assert_eq(server_stops[1], "/tmp/in-nvim-test-server", "kitty integration should stop rpc server")
+
+reset()
+current_mode = "n"
+vim.env.KITTY_WINDOW_ID = "in-nvim-test-window-fail"
+plugin.setup({
+  runner = runner,
+  notify = false,
+  kitty_focus_check = true,
+  zellij_focus_check = false,
+  serverstart = failing_serverstart,
+  serverstop = serverstop,
+  get_mode = function()
+    return { mode = current_mode }
+  end,
+})
+assert_eq(plugin._state().kitty_server, nil, "kitty server startup failure should not register a server")
+assert_eq(plugin._state().kitty_focus_path, nil, "kitty server startup failure should not register a focus file")
+
+reset()
+vim.api.nvim_exec_autocmds("FocusGained", {})
+assert_calls({ "-c" }, "kitty server startup failure should not prevent focus autocmds")
+
 vim.env.ZELLIJ = old_zellij
 vim.env.ZELLIJ_PANE_ID = old_zellij_pane_id
+vim.env.KITTY_WINDOW_ID = old_kitty_window_id
 
 -- IBus backend tests
 
